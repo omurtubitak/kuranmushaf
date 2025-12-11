@@ -1,5 +1,5 @@
 // Dosya Adı: netlify/functions/gemini-proxy.js
-// Bu kod Node.js ortamında (Sunucuda) çalışır.
+// Bu kod Node.js ortamında (Sunucuda) çalışır ve sohbet geçmişini destekler.
 
 const fetch = require('node-fetch'); 
 
@@ -19,21 +19,23 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // 2. İstemciden (Browser) Gelen Sorguyu Al
-        const { prompt } = JSON.parse(event.body);
+        // 2. İstemciden (Browser) Gelen SOHBET GEÇMİŞİNİ (history) Al
+        const { history } = JSON.parse(event.body);
 
-        // 3. Model Adını Belirle (Sizin için çalışan model)
+        // Zorunlu Kontrol: Geçmiş boş gelmemeli ve doğru yapıda olmalı
+        if (!history || !Array.isArray(history)) {
+             return { statusCode: 400, body: JSON.stringify({ error: "Sohbet geçmişi (history) formatı geçersiz." }) };
+        }
+
         const MODEL_NAME = "gemini-2.5-flash"; 
 
-        // 4. Gemini API'ye Güvenli Çağrı Yap (API Key burada kullanılır)
+        // 3. Gemini API'ye Güvenli Çağrı Yap
         const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GOOGLE_API_KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                contents: [{ 
-                    role: "user", 
-                    parts: [{ text: prompt }] 
-                }]
+                // ARTIK SADECE SON SORUYU DEĞİL, TÜM GEÇMİŞİ (history) GÖNDERİYORUZ
+                contents: history 
             })
         });
 
@@ -47,7 +49,7 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // 5. Cevabı Temizleyip İstemciye Geri Gönder
+        // 4. Cevabı Temizleyip İstemciye Geri Gönder
         const aiResponseText = data.candidates[0].content.parts[0].text;
 
         return {

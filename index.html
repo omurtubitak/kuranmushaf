@@ -10,7 +10,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
+    <script src="https://unpkg.com/dexie@3.2.1/dist/dexie.js"></script>
     <style>
         :root {
             --primary-color: #00796b;
@@ -308,7 +308,8 @@
         </div>
         <div class="chat-body" id="chatBody">
             <div class="message ai">
-                Selamun Aleyküm! Ben Mahir, Kuran Asistanıyım. Genel İslami bilgi, tefsir ve Kuran konularında size yardımcı
+                Selamun Aleyküm! Ben Mahir, Kuran Asistanıyım. Genel İslami bilgi, tefsir ve Kuran konularında size
+                yardımcı
                 olabilirim.
             </div>
         </div>
@@ -326,7 +327,53 @@
         const API_URL = "https://cdn.jsdelivr.net/gh/fawazahmed0/quran-api@1/editions/tur-elmalilihamdiya.json";
 
         // Global Değişkenler
-        let quranData = [];
+        let quranData = []; // Kuran verileri burada yüklenecek 
+        let chatHistory = []; // Sohbet geçmişi burada saklanacak
+
+        // 1. Dexie ile veritabanını oluştur ve tabloları (Object Stores) tanımla
+        const db = new Dexie("MahirChatDB");
+        db.version(1).stores({
+            // 'history' adında bir tablo (store) oluştur.
+            // 'id' anahtarı ile kayıt yapacağız. Tek bir sohbet geçmişi için 'id' anahtarını sabit tutacağız.
+            history: 'id'
+        });
+
+        // 2. Konuşma Geçmişini Yükleme Fonksiyonu
+        async function loadChatHistory() {
+            try {
+                // ID'si 1 olan sohbet geçmişini çek
+                const record = await db.history.get(1);
+                if (record && record.messages) {
+                    chatHistory = record.messages;
+                    console.log("Geçmiş başarıyla IndexedDB'den yüklendi. Mesaj Sayısı:", chatHistory.length);
+
+                    // Yüklenen geçmişi sohbet arayüzüne (UI) aktar
+                    document.getElementById('chatBody').innerHTML = ''; // Önce temizle
+                    chatHistory.forEach(msg => {
+                        // Sadece user ve model rolündeki mesajları göster
+                        if (msg.role === 'user' || msg.role === 'model') {
+                            // Sistem talimatlarını göstermeyi atla
+                            if (!msg.parts[0].text.startsWith('[KONUŞMA BAŞLANGICI]')) {
+                                appendMessage(msg.role, msg.parts[0].text);
+                            }
+                        }
+                    });
+                    const chatBody = document.getElementById('chatBody');
+                    chatBody.scrollTop = chatBody.scrollHeight;
+
+                } else {
+                    console.log("IndexedDB'de kayıtlı geçmiş bulunamadı. Yeni sohbet başlatılıyor.");
+                    chatHistory = []; // Geçmiş yoksa sıfırla
+                }
+            } catch (error) {
+                console.error("IndexedDB yükleme hatası:", error);
+                chatHistory = [];
+            }
+        }
+
+        // Sayfa yüklendiğinde geçmişi yükle
+        loadChatHistory();
+
         const surahNames = [
             "Fâtiha", "Bakara", "Âl-i İmrân", "Nisâ", "Mâide", "En'âm", "A'râf", "Enfâl", "Tevbe", "Yûnus",
             "Hûd", "Yûsuf", "Ra'd", "İbrâhîm", "Hicr", "Nahl", "İsrâ", "Kehf", "Meryem", "Tâhâ",
@@ -372,26 +419,26 @@
             listContainer.innerHTML = html;
         }
 
-function loadSurah(surahNo) {
-    document.getElementById('searchInput').value = '';
-    document.querySelectorAll('.surah-item').forEach(el => el.classList.remove('active'));
-    const activeItem = document.getElementById(`surah-${surahNo}`);
-    if(activeItem) {
-        activeItem.classList.add('active');
-        activeItem.scrollIntoView({behavior: "smooth", block: "center"});
-    }
+        function loadSurah(surahNo) {
+            document.getElementById('searchInput').value = '';
+            document.querySelectorAll('.surah-item').forEach(el => el.classList.remove('active'));
+            const activeItem = document.getElementById(`surah-${surahNo}`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+                activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
 
-    const verses = quranData.filter(v => v.chapter === surahNo);
-    const container = document.getElementById('verseContainer');
-    const surahName = surahNames[surahNo - 1];
+            const verses = quranData.filter(v => v.chapter === surahNo);
+            const container = document.getElementById('verseContainer');
+            const surahName = surahNames[surahNo - 1];
 
-    let contentHtml = `<div class="text-center mb-4"><h2 style="color:var(--primary-color);">${surahName} Suresi</h2><hr style="width: 50px; margin: 10px auto; border-top: 3px solid var(--primary-color);"></div>`;
-    if (surahNo !== 9) contentHtml += `<div class="besmele">Bismillahirrahmanirrahim</div>`;
+            let contentHtml = `<div class="text-center mb-4"><h2 style="color:var(--primary-color);">${surahName} Suresi</h2><hr style="width: 50px; margin: 10px auto; border-top: 3px solid var(--primary-color);"></div>`;
+            if (surahNo !== 9) contentHtml += `<div class="besmele">Bismillahirrahmanirrahim</div>`;
 
-    verses.forEach(verse => {
-        // Yeni buton formatı: Ayet kodunu ve surah adını gönderir
-        const verseCode = `${verse.chapter}/${verse.verse}`;
-        contentHtml += `<div class="verse-card" id="verse-${verseCode}">
+            verses.forEach(verse => {
+                // Yeni buton formatı: Ayet kodunu ve surah adını gönderir
+                const verseCode = `${verse.chapter}/${verse.verse}`;
+                contentHtml += `<div class="verse-card" id="verse-${verseCode}">
                             <div class="d-flex">
                                 <span class="verse-number">${verse.verse}</span>
                                 <div class="verse-text w-100">${verse.text}</div>
@@ -403,35 +450,35 @@ function loadSurah(surahNo) {
                                 </button>
                             </div>
                         </div>`;
-    });
-    container.scrollTop = 0;
-    container.innerHTML = contentHtml;
-}
+            });
+            container.scrollTop = 0;
+            container.innerHTML = contentHtml;
+        }
 
-function askMahireForVerseCode(verseCode, surahName) {
-    // 1. Soruyu net bir şekilde oluştur
-    const question = `${surahName} suresindeki ${verseCode} ayetinin İslami açıklamasını ve tefsirini yap.`;
+        function askMahireForVerseCode(verseCode, surahName) {
+            // 1. Soruyu net bir şekilde oluştur
+            const question = `${surahName} suresindeki ${verseCode} ayetinin İslami açıklamasını ve tefsirini yap.`;
 
-    // 2. Sohbet penceresini aç
-    toggleChat(true); 
+            // 2. Sohbet penceresini aç
+            toggleChat(true);
 
-    // 3. Input alanına soruyu yaz ve otomatik olarak AI'a sor
-    const inputEl = document.getElementById('aiInput');
-    inputEl.value = question;
-    
-    // Otomatik olarak göndermek için askGemini'yi çağırıyoruz
-    askGemini();
-}
+            // 3. Input alanına soruyu yaz ve otomatik olarak AI'a sor
+            const inputEl = document.getElementById('aiInput');
+            inputEl.value = question;
 
-// toggleChat fonksiyonunu da isteğe bağlı açma/kapama için koruyalım
-function toggleChat(forceOpen = false) {
-    const win = document.getElementById('chatWindow');
-    if (forceOpen) {
-        win.style.display = 'flex';
-    } else {
-        win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
-    }
-}
+            // Otomatik olarak göndermek için askGemini'yi çağırıyoruz
+            askGemini();
+        }
+
+        // toggleChat fonksiyonunu da isteğe bağlı açma/kapama için koruyalım
+        function toggleChat(forceOpen = false) {
+            const win = document.getElementById('chatWindow');
+            if (forceOpen) {
+                win.style.display = 'flex';
+            } else {
+                win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
+            }
+        }
         function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
             if (query.length < 2) { alert("En az 2 karakter girin."); return; }
@@ -471,60 +518,92 @@ function toggleChat(forceOpen = false) {
             if (e.key === 'Enter') askGemini();
         }
 
+ // --- askGemini() fonksiyonu (GÜNCELLENMİŞ) ---
+async function askGemini() {
+    const inputEl = document.getElementById('aiInput');
+    const userQuery = inputEl.value.trim();
+    if (!userQuery) return;
 
-        async function askGemini() {
-            const inputEl = document.getElementById('aiInput');
-            const userQuery = inputEl.value.trim();
-            if (!userQuery) return;
+    appendMessage("user", userQuery);
+    inputEl.value = '';
+    document.getElementById('typingIndicator').style.display = 'block';
+    const chatBody = document.getElementById('chatBody');
+    chatBody.scrollTop = chatBody.scrollHeight;
 
-            // Artık API Key kontrolü yapmıyoruz, sunucu üstlenecek.
-
-            appendMessage("user", userQuery);
-            inputEl.value = '';
-            document.getElementById('typingIndicator').style.display = 'block';
-            const chatBody = document.getElementById('chatBody');
-            chatBody.scrollTop = chatBody.scrollHeight;
-
-            // Sistemin modelden beklentisini belirleyen talimat
-            const systemInstruction = `
+    // Sistem talimatı
+    const systemInstruction = `
         Sen, görevi yalnızca İslami ve ahlaki çerçevede, kibar ve saygılı bir dille cevap vermek olan, uzman bir İslami asistansın.İsmin Mahir.Aşağıdaki kurallara kesinlikle uy:
         1. Kapsamlı İslami bilgini kullanarak, Kuran ve din hakkındaki soruları yanıtla. Cevapların her zaman İslami ilkelere ve Türkiye Diyanet İşleri Başkanlığı'nın genel görüşüne uygun olmalıdır.
         2. KESİNLİKLE YASAK: Ahlaki değerlere, dinin kutsallarına veya toplumsal etik kurallarına aykırı, yasa dışı, şiddet içeren, nefret söylemi içeren veya cinsel içerikli soruları reddet.
         3. RED CEVABI: Bu tür uygunsuz sorulara, "Bu tür konular hakkında konuşmam, İslami ve etik sınırlarımı aşmaktadır. Lütfen dini konularla ilgili bir soru sorun." gibi kibar ama net bir ifadeyle cevap ver.
         4. Cevaplarını Türkçe, saygılı ve akademik bir üslupla sun.
     `;
+    
+    // 1. KONUŞMA PENCERESİ YÖNETİMİ (Token sınırını aşmamak için)
+    // MAX_TURNS'u doğru tanımladığınızı varsayarak bu kontrolü koruyoruz.
 
-            // Sistem Talimatı ve Kullanıcı Sorusu sunucuya gönderilir.
-            const finalPrompt = `[Sistem Talimatı: ${systemInstruction}] \n\nKULLANICI SORUSU: ${userQuery}`;
+    // 2. SİSTEM TALİMATINI GEÇMİŞE EKLE (Sadece ilk çağrıda)
+    if (chatHistory.length === 0) {
+        chatHistory.push({
+            role: "user", // Sistem talimatını ilk user isteği olarak gönderiyoruz.
+            parts: [{ text: `[KONUŞMA BAŞLANGICI]\n${systemInstruction}` }]
+        });
+    }
 
-            try {
-                // Netlify Fonksiyonunu çağırıyoruz (API Key burada kullanılmaz)
-                const response = await fetch('/.netlify/functions/gemini-proxy', {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        prompt: finalPrompt // Sadece son prompt'u gönderiyoruz
-                    })
-                });
+    // 3. KULLANICININ YENİ SORUSUNU GEÇMİŞE EKLE
+    chatHistory.push({
+        role: "user", 
+        parts: [{ text: userQuery }] 
+    });
 
-                const data = await response.json();
+    try {
+        // Netlify Fonksiyonuna TÜM chatHistory'yi gönderiyoruz
+        const response = await fetch('/.netlify/functions/gemini-proxy', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                history: chatHistory // <--- DOĞRU: TÜM GEÇMİŞ GÖNDERİLİYOR
+            })
+        });
 
-                document.getElementById('typingIndicator').style.display = 'none';
+        const data = await response.json();
 
-                if (data.error) {
-                    appendMessage("ai", `API Hatası: ${data.error.message || data.error || 'Sunucu fonksiyonu hatası.'}`);
-                } else {
-                    // Sunucu fonksiyonundan gelen temiz cevabı kullan
-                    appendMessage("ai", data.text);
-                }
+        document.getElementById('typingIndicator').style.display = 'none';
 
-            } catch (err) {
-                document.getElementById('typingIndicator').style.display = 'none';
-                appendMessage("ai", "Bağlantı hatası oluştu. Netlify fonksiyonunun çalıştığından emin olun.");
-                console.error(err);
-            }
+        if (data.error) {
+            appendMessage("ai", `API Hatası: ${data.error.message || data.error || 'Sunucu fonksiyonu hatası.'}`);
+            // Hata durumunda son eklenen kullanıcı mesajını tarihten çıkar
+            chatHistory.pop();
+        } else {
+            const aiResponseText = data.text;
+            appendMessage("ai", aiResponseText);
+
+            // AI cevabını tarihe ekle
+            chatHistory.push({
+                role: "model",
+                parts: [{ text: aiResponseText }]
+            });
+
+            // 4. BAŞARILI İŞLEMDEN SONRA INDEXEDDB'YE KAYDET
+            saveChatHistory(); 
         }
 
+    } catch (err) {
+        document.getElementById('typingIndicator').style.display = 'none';
+        appendMessage("ai", "Bağlantı hatası oluştu. Netlify fonksiyonunun çalıştığından emin olun.");
+        chatHistory.pop(); 
+        console.error(err);
+    }
+}
+        async function saveChatHistory() {
+            try {
+                // ID'si 1 olan kaydı, güncel chatHistory dizisi ile güncelle veya oluştur (put)
+                await db.history.put({ id: 1, messages: chatHistory });
+                // console.log("Geçmiş IndexedDB'ye kaydedildi.");
+            } catch (error) {
+                console.error("Geçmiş kaydetme hatası:", error);
+            }
+        }
 
         function appendMessage(role, text) {
             const chatBody = document.getElementById('chatBody');
