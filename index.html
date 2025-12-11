@@ -540,15 +540,20 @@ async function askGemini() {
     `;
     
     // 1. KONUŞMA PENCERESİ YÖNETİMİ (Token sınırını aşmamak için)
-    // MAX_TURNS'u doğru tanımladığınızı varsayarak bu kontrolü koruyoruz.
-
+    // MAX_TURNS'u doğru tanımladığınızı varsayarak bu kontrolü koruyoruz. 
+    const MAX_TURNS = 10; // Örn: 10 soru-cevap çifti (20 mesaj) tutulacak
     // 2. SİSTEM TALİMATINI GEÇMİŞE EKLE (Sadece ilk çağrıda)
     if (chatHistory.length === 0) {
         chatHistory.push({
             role: "user", // Sistem talimatını ilk user isteği olarak gönderiyoruz.
             parts: [{ text: `[KONUŞMA BAŞLANGICI]\n${systemInstruction}` }]
         });
-    }
+    }else if (chatHistory.length > (MAX_TURNS * 2) + 1) { 
+    // En baştaki 2 öğeyi (En eski soru ve cevabı) sil.
+    // İlk index olan 0'daki Sistem Talimatını korumak için 1. index'ten silmeye başla.
+    chatHistory.splice(1, 2); 
+    console.warn("Sohbet geçmişi penceresi doldu, en eski mesajlar silindi.");
+}
 
     // 3. KULLANICININ YENİ SORUSUNU GEÇMİŞE EKLE
     chatHistory.push({
