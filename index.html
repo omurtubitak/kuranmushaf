@@ -372,29 +372,66 @@
             listContainer.innerHTML = html;
         }
 
-        function loadSurah(surahNo) {
-            document.getElementById('searchInput').value = '';
-            document.querySelectorAll('.surah-item').forEach(el => el.classList.remove('active'));
-            const activeItem = document.getElementById(`surah-${surahNo}`);
-            if (activeItem) {
-                activeItem.classList.add('active');
-                activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
+function loadSurah(surahNo) {
+    document.getElementById('searchInput').value = '';
+    document.querySelectorAll('.surah-item').forEach(el => el.classList.remove('active'));
+    const activeItem = document.getElementById(`surah-${surahNo}`);
+    if(activeItem) {
+        activeItem.classList.add('active');
+        activeItem.scrollIntoView({behavior: "smooth", block: "center"});
+    }
 
-            const verses = quranData.filter(v => v.chapter === surahNo);
-            const container = document.getElementById('verseContainer');
-            const surahName = surahNames[surahNo - 1];
+    const verses = quranData.filter(v => v.chapter === surahNo);
+    const container = document.getElementById('verseContainer');
+    const surahName = surahNames[surahNo - 1];
 
-            let contentHtml = `<div class="text-center mb-4"><h2 style="color:var(--primary-color);">${surahName} Suresi</h2><hr style="width: 50px; margin: 10px auto; border-top: 3px solid var(--primary-color);"></div>`;
-            if (surahNo !== 9) contentHtml += `<div class="besmele">Bismillahirrahmanirrahim</div>`;
+    let contentHtml = `<div class="text-center mb-4"><h2 style="color:var(--primary-color);">${surahName} Suresi</h2><hr style="width: 50px; margin: 10px auto; border-top: 3px solid var(--primary-color);"></div>`;
+    if (surahNo !== 9) contentHtml += `<div class="besmele">Bismillahirrahmanirrahim</div>`;
 
-            verses.forEach(verse => {
-                contentHtml += `<div class="verse-card"><div class="d-flex"><span class="verse-number">${verse.verse}</span><div class="verse-text w-100">${verse.text}</div></div></div>`;
-            });
-            container.scrollTop = 0;
-            container.innerHTML = contentHtml;
-        }
+    verses.forEach(verse => {
+        // Yeni buton formatı: Ayet kodunu ve surah adını gönderir
+        const verseCode = `${verse.chapter}/${verse.verse}`;
+        contentHtml += `<div class="verse-card" id="verse-${verseCode}">
+                            <div class="d-flex">
+                                <span class="verse-number">${verse.verse}</span>
+                                <div class="verse-text w-100">${verse.text}</div>
+                            </div>
+                            <div class="text-end mt-2">
+                                <button class="btn btn-sm btn-outline-secondary" 
+                                        onclick="askMahireForVerseCode('${verseCode}', '${surahName}')">
+                                    <i class="fas fa-question-circle me-1"></i> ${verseCode} Hakkında Mahire Sor
+                                </button>
+                            </div>
+                        </div>`;
+    });
+    container.scrollTop = 0;
+    container.innerHTML = contentHtml;
+}
 
+function askMahireForVerseCode(verseCode, surahName) {
+    // 1. Soruyu net bir şekilde oluştur
+    const question = `${surahName} suresindeki ${verseCode} ayetinin İslami açıklamasını ve tefsirini yap.`;
+
+    // 2. Sohbet penceresini aç
+    toggleChat(true); 
+
+    // 3. Input alanına soruyu yaz ve otomatik olarak AI'a sor
+    const inputEl = document.getElementById('aiInput');
+    inputEl.value = question;
+    
+    // Otomatik olarak göndermek için askGemini'yi çağırıyoruz
+    askGemini();
+}
+
+// toggleChat fonksiyonunu da isteğe bağlı açma/kapama için koruyalım
+function toggleChat(forceOpen = false) {
+    const win = document.getElementById('chatWindow');
+    if (forceOpen) {
+        win.style.display = 'flex';
+    } else {
+        win.style.display = (win.style.display === 'none' || win.style.display === '') ? 'flex' : 'none';
+    }
+}
         function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
             if (query.length < 2) { alert("En az 2 karakter girin."); return; }
