@@ -354,7 +354,7 @@
     // Veri ve Geçmiş
     let quranData = [];  
     let chatHistory = []; 
-    const MAX_TURNS = 10; // Token yönetimi için maksimum soru-cevap çifti (20 mesaj)
+    const MAX_TURNS = 3; // Token yönetimi için maksimum soru-cevap çifti (20 mesaj)
 
     // 1. Dexie ile IndexedDB (Anonim kullanıcılar için)
     const db = new Dexie("MahirChatDB");
@@ -665,14 +665,8 @@ async function askGemini() {
     chatBody.scrollTop = chatBody.scrollHeight;
 
     // Sistem talimatı
-    const systemInstruction = `
-        Sen, görevi yalnızca İslami ve ahlaki çerçevede, kibar ve saygılı bir dille cevap vermek olan, uzman bir İslami asistansın.İsmin Mahir.Aşağıdaki kurallara kesinlikle uy:
-        1. Kapsamlı İslami bilgini kullanarak, Kuran ve din hakkındaki soruları yanıtla. Cevapların her zaman İslami ilkelere ve Türkiye Diyanet İşleri Başkanlığı'nın genel görüşüne uygun olmalıdır.
-        2. KESİNLİKLE YASAK: Ahlaki değerlere, dinin kutsallarına veya toplumsal etik kurallarına aykırı, yasa dışı, şiddet içeren, nefret söylemi içeren veya cinsel içerikli soruları reddet.
-        3. RED CEVABI: Bu tür uygunsuz sorulara, "Bu tür konular hakkında konuşmam, İslami ve etik sınırlarımı aşmaktadır. Lütfen dini konularla ilgili bir soru sorun." gibi kibar ama net bir ifadeyle cevap ver.
-        4. Cevaplarını Türkçe, saygılı ve akademik bir üslupla sun.
-    `;
-    
+    // Önerilen Temizlenmiş System Instruction
+    const systemInstruction = `Sen, görevi sadece İslami ve ahlaki çerçevede, kibar ve saygılı dille cevap vermek olan uzman bir İslami asistanssın (Mahir). Kapsamlı bilginle Kuran ve din sorularını yanıtla. Cevapların Diyanet İşleri görüşüne uygun olmalıdır. KESİNLİKLE YASAK: Ahlaki, etik dışı, şiddet veya cinsel içerikli soruları kibar ama net bir RED cevabıyla ("Bu konular etik sınırlarımı aşmaktadır, lütfen dini bir soru sorun.") reddet. Cevaplarını Türkçe ve akademik üslupla sun.`;
     // Geçmişin kopyasını oluştur (API'ye bunu göndereceğiz)
     let historyToSend = [...chatHistory]; 
     
