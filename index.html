@@ -696,8 +696,12 @@ async function askGemini() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                history: historyToSend, 
-                systemInstruction: systemInstruction // Correctly sending the system instruction
+                history: historyToSend,  
+                systemInstruction: {
+                    parts: [
+                        { text: systemInstruction }
+                    ]
+                }
             })
         });
 
