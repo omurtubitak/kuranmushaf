@@ -652,94 +652,108 @@
 
     // --- ANA API VE SOHBET YÖNETİM FONKSİYONU ---
 
-    async function askGemini() {
-        const inputEl = document.getElementById('aiInput');
-        const userQuery = inputEl.value.trim();
-        if (!userQuery) return;
+     // --- ANA API VE SOHBET YÖNETİM FONKSİYONU ---
 
-        appendMessage("user", userQuery);
-        inputEl.value = '';
-        document.getElementById('typingIndicator').style.display = 'block';
-        const chatBody = document.getElementById('chatBody');
-        chatBody.scrollTop = chatBody.scrollHeight;
+async function askGemini() {
+    const inputEl = document.getElementById('aiInput');
+    const userQuery = inputEl.value.trim();
+    if (!userQuery) return;
 
-        // Sistem talimatı
-        const systemInstruction = `
-            Sen, görevi yalnızca İslami ve ahlaki çerçevede, kibar ve saygılı bir dille cevap vermek olan, uzman bir İslami asistansın.İsmin Mahir.Aşağıdaki kurallara kesinlikle uy:
-            1. Kapsamlı İslami bilgini kullanarak, Kuran ve din hakkındaki soruları yanıtla. Cevapların her zaman İslami ilkelere ve Türkiye Diyanet İşleri Başkanlığı'nın genel görüşüne uygun olmalıdır.
-            2. KESİNLİKLE YASAK: Ahlaki değerlere, dinin kutsallarına veya toplumsal etik kurallarına aykırı, yasa dışı, şiddet içeren, nefret söylemi içeren veya cinsel içerikli soruları reddet.
-            3. RED CEVABI: Bu tür uygunsuz sorulara, "Bu tür konular hakkında konuşmam, İslami ve etik sınırlarımı aşmaktadır. Lütfen dini konularla ilgili bir soru sorun." gibi kibar ama net bir ifadeyle cevap ver.
-            4. Cevaplarını Türkçe, saygılı ve akademik bir üslupla sun.
-        `;
-        
-        // 1. KONUŞMA PENCERESİ YÖNETİMİ (Token sınırını aşmamak için)
-        // MAX_TURNS * 2 = Mesaj çiftlerinin sayısı. +1, sistem talimatı mesajı içindir.
-        if (chatHistory.length > (MAX_TURNS * 2) + 1) { 
-            // En baştaki 2 öğeyi (En eski soru ve cevabı) sil.
-            // İlk index olan 0'daki Sistem Talimatını korumak için 1. index'ten silmeye başla.
-            chatHistory.splice(1, 2); 
-            console.warn("Sohbet geçmişi penceresi doldu, en eski mesajlar silindi.");
-        }
+    appendMessage("user", userQuery);
+    inputEl.value = '';
+    document.getElementById('typingIndicator').style.display = 'block';
+    const chatBody = document.getElementById('chatBody');
+    chatBody.scrollTop = chatBody.scrollHeight;
 
-        // 2. SİSTEM TALİMATINI GEÇMİŞE EKLE (Sadece ilk çağrıda)
-        if (chatHistory.length === 0) {
-            chatHistory.push({
-                role: "user", // Sistem talimatını ilk user isteği olarak gönderiyoruz.
-                parts: [{ text: `[KONUŞMA BAŞLANGICI]\n${systemInstruction}` }]
-            });
-        }
+    // Sistem talimatı
+    const systemInstruction = `
+        Sen, görevi yalnızca İslami ve ahlaki çerçevede, kibar ve saygılı bir dille cevap vermek olan, uzman bir İslami asistansın.İsmin Mahir.Aşağıdaki kurallara kesinlikle uy:
+        1. Kapsamlı İslami bilgini kullanarak, Kuran ve din hakkındaki soruları yanıtla. Cevapların her zaman İslami ilkelere ve Türkiye Diyanet İşleri Başkanlığı'nın genel görüşüne uygun olmalıdır.
+        2. KESİNLİKLE YASAK: Ahlaki değerlere, dinin kutsallarına veya toplumsal etik kurallarına aykırı, yasa dışı, şiddet içeren, nefret söylemi içeren veya cinsel içerikli soruları reddet.
+        3. RED CEVABI: Bu tür uygunsuz sorulara, "Bu tür konular hakkında konuşmam, İslami ve etik sınırlarımı aşmaktadır. Lütfen dini konularla ilgili bir soru sorun." gibi kibar ama net bir ifadeyle cevap ver.
+        4. Cevaplarını Türkçe, saygılı ve akademik bir üslupla sun.
+    `;
+    
+    // Geçmişin kopyasını oluştur (API'ye bunu göndereceğiz)
+    let historyToSend = [...chatHistory]; 
+    
+    // 1. KONUŞMA PENCERESİ YÖNETİMİ (Token sınırını aşmamak için)
+    const currentMaxMessages = (MAX_TURNS * 2) + 1;
 
-        // 3. KULLANICININ YENİ SORUSUNU GEÇMİŞE EKLE
-        chatHistory.push({
+    if (historyToSend.length > currentMaxMessages) { 
+        // En baştaki 2 öğeyi (En eski soru ve cevabı) sil.
+        // İlk index olan 0'daki Sistem Talimatını korumak için 1. index'ten silmeye başla.
+        historyToSend.splice(1, 2); 
+        console.warn("Sohbet geçmişi penceresi doldu, en eski mesajlar silindi.");
+    }
+
+    // 2. SİSTEM TALİMATINI GEÇMİŞE EKLE (Sadece ilk çağrıda)
+    if (historyToSend.length === 0) {
+        historyToSend.push({
             role: "user", 
-            parts: [{ text: userQuery }] 
+            parts: [{ text: `[KONUŞMA BAŞLANGICI]\n${systemInstruction}` }]
+        });
+    }
+
+    // 3. KULLANICININ YENİ SORUSUNU GEÇMİŞE EKLE
+    historyToSend.push({
+        role: "user", 
+        parts: [{ text: userQuery }] 
+    });
+
+    try {
+        const response = await fetch('/.netlify/functions/gemini-proxy', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                history: historyToSend // Geçmişin tamamını gönderiyoruz
+            })
         });
 
-        try {
-            // Netlify Fonksiyonuna TÜM chatHistory'yi gönderiyoruz
-            const response = await fetch('/.netlify/functions/gemini-proxy', {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    history: chatHistory // TÜM GEÇMİŞ GÖNDERİLİYOR
-                })
-            });
+        const data = await response.json();
 
-            const data = await response.json();
+        document.getElementById('typingIndicator').style.display = 'none';
 
-            document.getElementById('typingIndicator').style.display = 'none';
-
-            if (data.error) {
-                let errorMessage = `API Hatası: ${data.error.message || data.error || 'Sunucu fonksiyonu hatası.'}`;
-                // Kota aşıldıysa özel mesaj göster
-                if (errorMessage.includes("Quota exceeded") || errorMessage.includes("limit: 20")) {
-                     errorMessage = "⚠️ Yoğun talep nedeniyle Google'ın ücretsiz kullanım limiti anlık olarak doldu. Lütfen birkaç dakika sonra tekrar deneyin.";
-                }
-
-                appendMessage("ai", errorMessage);
-                // Hata durumunda son eklenen kullanıcı mesajını tarihten çıkar
-                chatHistory.pop();
-            } else {
-                const aiResponseText = data.text;
-                appendMessage("ai", aiResponseText);
-
-                // AI cevabını tarihe ekle
-                chatHistory.push({
-                    role: "model",
-                    parts: [{ text: aiResponseText }]
-                });
-
-                // 4. BAŞARILI İŞLEMDEN SONRA FIRESTORE veya INDEXEDDB'YE KAYDET
-                saveChatHistory(); 
+        if (data.error) {
+            let errorMessage = `API Hatası: ${data.error.message || data.error || 'Sunucu fonksiyonu hatası.'}`;
+            
+            // 🛑 YENİ: Kota aşım hatası yakalama ve dengeleyici mekanizma
+            if (errorMessage.includes("Quota exceeded") || errorMessage.includes("limit: 20")) {
+                 errorMessage = "⚠️ Yoğun talep nedeniyle Google'ın ücretsiz kullanım limiti anlık olarak doldu. Lütfen birkaç dakika sonra tekrar deneyin.";
+                 
+                 // EK GÜVENLİK ADIMI: chatHistory'yi küçült
+                 if (chatHistory.length > 3) {
+                     // Sistem talimatını koruyarak sadece son 3 mesajı tut (Sistemin rolünü unutmasın)
+                     // NOT: Buradaki küçültme, sadece sonraki denemelerde daha az token harcamak içindir.
+                     chatHistory = [chatHistory[0], ...chatHistory.slice(-2)];
+                     console.warn("Kota aşımı tespit edildi. Gönderilecek geçmiş geçici olarak son 2 mesaja düşürüldü.");
+                 }
             }
 
-        } catch (err) {
-            document.getElementById('typingIndicator').style.display = 'none';
-            appendMessage("ai", "Bağlantı hatası oluştu. Netlify fonksiyonunun çalıştığından emin olun.");
-            chatHistory.pop(); 
-            console.error(err);
+            appendMessage("ai", errorMessage);
+            // Hata durumunda son eklenen kullanıcı mesajını tarihten çıkar (tekrar denesin)
+            chatHistory.pop();
+        } else {
+            const aiResponseText = data.text;
+            appendMessage("ai", aiResponseText);
+
+            // AI cevabını tarihe ekle (Ana geçmişe eklenir)
+            chatHistory.push({
+                role: "model",
+                parts: [{ text: aiResponseText }]
+            });
+
+            // Başarılı işlemden sonra Firestore veya IndexedDB'ye kaydet
+            saveChatHistory(); 
         }
+
+    } catch (err) {
+        document.getElementById('typingIndicator').style.display = 'none';
+        appendMessage("ai", "Bağlantı hatası oluştu. Netlify fonksiyonunun çalıştığından emin olun.");
+        chatHistory.pop(); 
+        console.error(err);
     }
+}
 </script>
 
 </body>
