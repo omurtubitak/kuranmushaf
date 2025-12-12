@@ -19,8 +19,8 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // 2. İstemciden (Browser) Gelen SOHBET GEÇMİŞİNİ (history) Al
-        const { history } = JSON.parse(event.body);
+        // 2. İstemciden (Browser) Gelen VERİLERİ YAKALA (history ve systemInstruction)
+        const { history, systemInstruction } = JSON.parse(event.body); // <-- DÜZELTME: systemInstruction eklendi
 
         // Zorunlu Kontrol: Geçmiş boş gelmemeli ve doğru yapıda olmalı
         if (!history || !Array.isArray(history)) {
@@ -34,8 +34,12 @@ exports.handler = async (event, context) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                // ARTIK SADECE SON SORUYU DEĞİL, TÜM GEÇMİŞİ (history) GÖNDERİYORUZ
-                contents: history 
+                // Artık temizlenmiş user/model döngüsü
+                contents: history ,
+                config: {
+                    // DÜZELTME: systemInstruction doğru bir şekilde API'ye gönderiliyor
+                    systemInstruction: systemInstruction 
+                }
             })
         });
 
@@ -43,9 +47,13 @@ exports.handler = async (event, context) => {
 
         // Hata kontrolü
         if (data.error) {
+            // Kota aşım hatalarını istemciye net bir şekilde döndürmek için
             return {
                 statusCode: data.error.code || 500,
-                body: JSON.stringify({ error: data.error.message })
+                body: JSON.stringify({ error: { 
+                    code: data.error.code || 500,
+                    message: data.error.message 
+                }})
             };
         }
 

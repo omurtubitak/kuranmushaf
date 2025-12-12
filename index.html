@@ -650,9 +650,8 @@
     });
 
 
+    // --- ANA API VE SOHBET YÖNETİM FONKSİYONU --- 
     // --- ANA API VE SOHBET YÖNETİM FONKSİYONU ---
-
-     // --- ANA API VE SOHBET YÖNETİM FONKSİYONU ---
 
 async function askGemini() {
     const inputEl = document.getElementById('aiInput');
@@ -678,24 +677,15 @@ async function askGemini() {
     let historyToSend = [...chatHistory]; 
     
     // 1. KONUŞMA PENCERESİ YÖNETİMİ (Token sınırını aşmamak için)
-    const currentMaxMessages = (MAX_TURNS * 2) + 1;
+    const currentMaxMessages = (MAX_TURNS * 2);
 
     if (historyToSend.length > currentMaxMessages) { 
         // En baştaki 2 öğeyi (En eski soru ve cevabı) sil.
-        // İlk index olan 0'daki Sistem Talimatını korumak için 1. index'ten silmeye başla.
-        historyToSend.splice(1, 2); 
+        historyToSend.splice(0, 2); 
         console.warn("Sohbet geçmişi penceresi doldu, en eski mesajlar silindi.");
     }
 
-    // 2. SİSTEM TALİMATINI GEÇMİŞE EKLE (Sadece ilk çağrıda)
-    if (historyToSend.length === 0) {
-        historyToSend.push({
-            role: "user", 
-            parts: [{ text: `[KONUŞMA BAŞLANGICI]\n${systemInstruction}` }]
-        });
-    }
-
-    // 3. KULLANICININ YENİ SORUSUNU GEÇMİŞE EKLE
+    // 2. KULLANICININ YENİ SORUSUNU GEÇMİŞE EKLE
     historyToSend.push({
         role: "user", 
         parts: [{ text: userQuery }] 
@@ -706,7 +696,8 @@ async function askGemini() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                history: historyToSend // Geçmişin tamamını gönderiyoruz
+                history: historyToSend, 
+                systemInstruction: systemInstruction // Correctly sending the system instruction
             })
         });
 
@@ -717,16 +708,16 @@ async function askGemini() {
         if (data.error) {
             let errorMessage = `API Hatası: ${data.error.message || data.error || 'Sunucu fonksiyonu hatası.'}`;
             
-            // 🛑 YENİ: Kota aşım hatası yakalama ve dengeleyici mekanizma
+            // 🛑 Kota aşım hatası yakalama ve dengeleyici mekanizma
             if (errorMessage.includes("Quota exceeded") || errorMessage.includes("limit: 20")) {
                  errorMessage = "⚠️ Yoğun talep nedeniyle Google'ın ücretsiz kullanım limiti anlık olarak doldu. Lütfen birkaç dakika sonra tekrar deneyin.";
                  
                  // EK GÜVENLİK ADIMI: chatHistory'yi küçült
-                 if (chatHistory.length > 3) {
-                     // Sistem talimatını koruyarak sadece son 3 mesajı tut (Sistemin rolünü unutmasın)
-                     // NOT: Buradaki küçültme, sadece sonraki denemelerde daha az token harcamak içindir.
-                     chatHistory = [chatHistory[0], ...chatHistory.slice(-2)];
-                     console.warn("Kota aşımı tespit edildi. Gönderilecek geçmiş geçici olarak son 2 mesaja düşürüldü.");
+                 if (chatHistory.length > 2) { // 2'den büyükse (yani 1 soru + 1 cevapdan fazla varsa)
+                     // Geçici olarak geçmişi son 2 mesaja indir (En son soru + cevap)
+                     // Sistem talimatı artık geçmişte olmadığı için bu slice mantığı doğrudur.
+                     chatHistory = chatHistory.slice(-2); 
+                     console.warn("Kota aşımı sonrası, token tasarrufu için geçmiş sadece son 2 mesaja düşürüldü.");
                  }
             }
 
@@ -754,6 +745,8 @@ async function askGemini() {
         console.error(err);
     }
 }
+
+ 
 </script>
 
 </body>
