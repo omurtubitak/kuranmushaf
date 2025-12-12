@@ -36,7 +36,7 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({
                 // Artık temizlenmiş user/model döngüsü
                 contents: history ,
-                config: {
+                generationConfig: {
                     // DÜZELTME: systemInstruction doğru bir şekilde API'ye gönderiliyor
                     systemInstruction: systemInstruction 
                 }
