@@ -35,11 +35,8 @@ exports.handler = async (event, context) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 // Artık temizlenmiş user/model döngüsü
-                contents: history ,
-                generationConfig: {
-                    // DÜZELTME: systemInstruction doğru bir şekilde API'ye gönderiliyor
-                    systemInstruction: systemInstruction 
-                }
+                contents: history , 
+                systemInstruction: systemInstruction // <-- DÜZELTME: systemInstruction eklendi
             })
         });
 
