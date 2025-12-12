@@ -20,11 +20,11 @@ exports.handler = async (event, context) => {
 
     try {
         // 2. İstemciden (Browser) Gelen VERİLERİ YAKALA (history ve systemInstruction)
-        const { history, systemInstruction } = JSON.parse(event.body); // <-- DÜZELTME: systemInstruction eklendi
+        const { contents, systemInstruction } = JSON.parse(event.body); // <-- DÜZELTME: systemInstruction eklendi
 
         // Zorunlu Kontrol: Geçmiş boş gelmemeli ve doğru yapıda olmalı
-        if (!history || !Array.isArray(history)) {
-             return { statusCode: 400, body: JSON.stringify({ error: "Sohbet geçmişi (history) formatı geçersiz." }) };
+        if (!contents || !Array.isArray(contents)) {
+             return { statusCode: 400, body: JSON.stringify({ error: "Sohbet geçmişi (contents) formatı geçersiz." }) };
         }
 
         const MODEL_NAME = "gemini-2.5-flash"; 
@@ -35,7 +35,7 @@ exports.handler = async (event, context) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 // Artık temizlenmiş user/model döngüsü
-                contents: history ,  
+                contents: contents ,  
                 systemInstruction: {
                     parts: [
                         { text: systemInstruction } // DÜZELTME: systemInstruction eklendi
